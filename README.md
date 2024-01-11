@@ -49,7 +49,7 @@ This project will serve as a base for many other goals:
     - [network](https://cardano.ideascale.com/c/idea/111634)
     - [ledger](https://cardano.ideascale.com/c/idea/110903)
 
-2) serve as base to then extract the only missing component for a proper typescript cardano node ( the consensus component, as the network can be find here, and the ledger here )
+2) serve as base to then extract the only missing component for a proper typescript cardano node ( the consensus component, as the [network can be found here](https://github.com/HarmonicLabs/ouroboros-miniprotocols-ts), and the [ledger here](https://github.com/HarmonicLabs/cardano-ledger-ts) )
 
 3) serve as a base to then extract the "runtime indipendent" code and have a passive node running in browsers (future project)
 
