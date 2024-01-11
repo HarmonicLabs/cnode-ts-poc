@@ -5,7 +5,7 @@
 To have a fully working **passive** cardano node as described in the [ouroboros-consensus documentation](https://ouroboros-consensus.cardano.intersectmbo.org/docs/for-developers/ComponentDiagram/) and represented in the diagram reported below
 
 ```mermaid
-flowchart LR
+graph LR
     ChainSel[Chain Selection]
     UPA[Upstream Peers Adapter]
     BP[ChainDB]
@@ -18,7 +18,7 @@ flowchart LR
 ```
 Legend:
 ```mermaid
-flowchart LR
+graph LR
     Publisher
     Subscriber
     Requester
