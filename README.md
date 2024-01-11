@@ -2,7 +2,7 @@
 
 ## The goal
 
-To have a fully working **passive** cardano node as described in the [ouroboros-consensus documentation](https://ouroboros-consensus.cardano.intersectmbo.org/docs/for-developers/ComponentDiagram/) and represented in the diagram reported below
+To have a fully working **passive** cardano node (ideally before January 25th) as described in the [ouroboros-consensus documentation](https://ouroboros-consensus.cardano.intersectmbo.org/docs/for-developers/ComponentDiagram/) and represented in the diagram reported below
 
 ```mermaid
 flowchart LR
