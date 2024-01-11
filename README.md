@@ -5,10 +5,10 @@
 To have a fully working **passive** cardano node as described in the [ouroboros-consensus documentation](https://ouroboros-consensus.cardano.intersectmbo.org/docs/for-developers/ComponentDiagram/) and represented in the diagram reported below
 
 ```mermaid
-graph LR
-    ChainSel[Chain Selection]
-    UPA[Upstream Peers Adapter]
-    BP[ChainDB]
+flowchart LR
+    ChainSel["Chain Selection"]
+    UPA["Upstream Peers Adapter"]
+    BP["ChainDB"]
 
     ChainSel -- H(L) --> UPA -- B --> ChainSel
     ChainSel -- B --> BP -- O(L) --> ChainSel
@@ -18,25 +18,25 @@ graph LR
 ```
 Legend:
 ```mermaid
-graph LR
+flowchart LR
     Publisher
     Subscriber
     Requester
     Server
-    a[ ]
-    b[ ]
-    c[ ]
-    d[ ]
+    a[" "]
+    b[" "]
+    c[" "]
+    d[" "]
 
    Publisher -- latest payload --> Subscriber
    Server -. requested payload .-> Requester
 
-   a -- B = Block --> b
-   a -- L = Ledger State --> b
+   a -- "B = Block" --> b
+   a -- "L = Ledger State" --> b
 
-   c -- H(X) = Header of X --> d
-   c -- I(X) = Only during Initialization --> d
-   c -- O(X) = occasionally pushing X --> d
+   c -- "H(X) = Header of X" --> d
+   c -- "I(X) = Only during Initialization" --> d
+   c -- "O(X) = occasionally pushing X" --> d
 ```
 
 ## Why?
