@@ -10,11 +10,11 @@ flowchart LR
     UPA["Upstream Peers Adapter"]
     BP["ChainDB"]
 
-    ChainSel -- H(L) --> UPA -- B --> ChainSel
-    ChainSel -- B --> BP -- O(L) --> ChainSel
+    ChainSel --"H(L)"--> UPA --"B"--> ChainSel
+    ChainSel --"B"--> BP --"O(L)"--> ChainSel
 
-    BP -. B .-> ChainSel
-    BP -. I(L) .-> ChainSel
+    BP -."B".-> ChainSel
+    BP -."I(L)".-> ChainSel
 ```
 Legend:
 ```mermaid
