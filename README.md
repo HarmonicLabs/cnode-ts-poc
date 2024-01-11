@@ -49,7 +49,7 @@ This project will serve as a base for many other goals:
     - [network](https://cardano.ideascale.com/c/idea/111634)
     - [ledger](https://cardano.ideascale.com/c/idea/110903)
 
-2) serve as base to then extract the only missing component fo a proper typescript cardano node ( the consensus component, as the network can be find here, and the ledger here )
+2) serve as base to then extract the only missing component for a proper typescript cardano node ( the consensus component, as the network can be find here, and the ledger here )
 
 3) serve as a base to then extract the "runtime indipendent" code and have a passive node running in browsers (future project)
 
