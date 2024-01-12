@@ -21,6 +21,7 @@ export function performHandshake( mplexers: Multiplexer[], networkMagic: number 
                     else {
                         logger.error("connection refused", msg );
                         mplexers.splice( mplexers.indexOf( mplexer ), 1 )
+                        resolve();
                         // throw new Error("TODO: handle rejection");
                     }
                 });
@@ -44,5 +45,5 @@ export function performHandshake( mplexers: Multiplexer[], networkMagic: number 
                 );
             }))
         )
-    )
+    );
 }

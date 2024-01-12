@@ -12,11 +12,14 @@
     "test": "jest"
   },
   "dependencies": {
-    "@harmoniclabs/cbor": "^1.1.3-dev0",
+    "@harmoniclabs/cardano-ledger-ts": "^0.1.3",
+    "@harmoniclabs/cbor": "^1.1.4",
     "@harmoniclabs/obj-utils": "^1.0.0",
     "@harmoniclabs/ouroboros-miniprotocols-ts": "^0.0.2-dev4",
     "@harmoniclabs/uint8array-utils": "^1.0.0",
-    "@types/node": "^20.1.7"
+    "@types/blake2": "^4.0.4",
+    "@types/node": "^20.1.7",
+    "blake2": "^5.0.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.22.9",
