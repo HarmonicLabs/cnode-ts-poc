@@ -65,6 +65,7 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
                 ) {
                     fetchAndSaveBlocks( blockFetchClients, start, prev );
                 }
+                start = undefined;
             }
         });
     }
