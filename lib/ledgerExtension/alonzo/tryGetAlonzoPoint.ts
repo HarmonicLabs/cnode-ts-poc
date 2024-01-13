@@ -15,7 +15,7 @@ export function tryGetAlonzoPoint( headerBytes: Uint8Array ): ChainPoint | undef
 
     if(!(
         lazyHeaderBody instanceof LazyCborArray &&
-        lazyHeaderBody.array.length === 11
+        lazyHeaderBody.array.length >= 11
     ))
     {
         return undefined;

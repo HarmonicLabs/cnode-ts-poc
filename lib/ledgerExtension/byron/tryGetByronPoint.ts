@@ -43,7 +43,10 @@ export function tryGetByronPoint( headerBytes: Uint8Array ): ChainPoint | undefi
 
     return new ChainPoint({
         blockHeader: {
-            hash: blake2b_256( headerBytes ),
+            // byron is a pain
+            // the hash is calculated wrapping the header in the second slot of an array
+            // the first slot is uint(0) for EBB and uint(1) for normal byron blocks
+            hash: blake2b_256( new Uint8Array([ 0x82, 0x01, ...headerBytes ]) ),
             slotNumber: epochId * BigInt( 21600 ) + slot
         }
     });
