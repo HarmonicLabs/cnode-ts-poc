@@ -1,4 +1,4 @@
-import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer } from "@harmoniclabs/ouroboros-miniprotocols-ts";
+import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
 import { Socket } from "net";
 import { existsSync, mkdir, mkdirSync, writeFile, writeFileSync } from "fs";
@@ -41,11 +41,7 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
         );
     });
     blockFetchClients.forEach( client => {
-        client.on("block", () =>
-            logger.info(
-                "received block"
-            )
-        );
+        client.on("error", logger.error );
     });
 
     let start: ChainPoint | undefined = undefined;
@@ -188,7 +184,9 @@ async function fetchAndSaveBlocks(
     basePath: string
 ): Promise<void>
 {
+    logger.info("requestRange: " + startPoint.toString() + " - " + endPoint.toString());
     const blocksMsgs = await client.requestRange( startPoint, endPoint );
+    
     if( blocksMsgs instanceof BlockFetchNoBlocks || !Array.isArray( blocksMsgs ) )
     {
         logger.error(
