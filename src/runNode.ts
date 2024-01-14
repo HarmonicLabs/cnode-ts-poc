@@ -9,7 +9,6 @@ import { appendFile } from "fs/promises";
 import { Cbor, CborBytes, CborUInt, LazyCborArray } from "@harmoniclabs/cbor";
 import { LazyCborTag } from "@harmoniclabs/cbor/dist/LazyCborObj/LazyCborTag";
 import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
-import { blake2b_256 } from "../lib/crypto";
 
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
