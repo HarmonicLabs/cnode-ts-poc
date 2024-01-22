@@ -1,4 +1,4 @@
-import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader } from "@harmoniclabs/ouroboros-miniprotocols-ts";
+import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
 import { Socket } from "net";
 import { existsSync, mkdir, mkdirSync, writeFile, writeFileSync } from "fs";
@@ -12,21 +12,10 @@ import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
 
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
-    // temporarily just consider one connection
-    while( connections.length > 1 ) connections.pop();
+    // temporarily just consider 2 connections
+    while( connections.length > 2 ) connections.pop();
 
-    if( !existsSync("./db") )
-    {
-        mkdirSync("./db");
-    }
-    if( !existsSync("./db/blocks") )
-    {
-        mkdirSync("./db/blocks");
-    }
-    if( !existsSync("./db/headers") )
-    {
-        mkdirSync("./db/headers");
-    }
+    createDbDirs()
 
     const chainSyncClients = connections.map( mplexer => new ChainSyncClient( mplexer ) );
     const blockFetchClients = connections.map( mplexer => new BlockFetchClient( mplexer ) );
@@ -101,7 +90,7 @@ function saveHeaderAndGetPoint( msg: ChainSyncRollForward, basePath: string ): C
         tryGetAlonzoPoint( headerBytes ) ??
         tryGetBabbagePoint( headerBytes );
 
-    if(!(point instanceof ChainPoint))
+    if(!(point instanceof RealPoint))
     {
         logger.error("unrecognized block header; " + toHex( headerBytes ) );
         throw new Error("unrecognized block header");
@@ -112,7 +101,7 @@ function saveHeaderAndGetPoint( msg: ChainSyncRollForward, basePath: string ): C
 
     const bytes = msg.toCborBytes();
     writeFile( path, bytes, () => {});
-    logger.info(`wrote ${bytes.length} bytes long header in file "${path}"`);
+    // logger.info(`wrote ${bytes.length} bytes long header in file "${path}"`);
 
     return point;
 }
@@ -213,4 +202,20 @@ async function fetchAndSaveBlocks(
         " blocks in file \"" + path + 
         "\" for a total of " + totBytes + " bytes"
     );
+}
+
+function createDbDirs(): void
+{
+    if( !existsSync("./db") )
+    {
+        mkdirSync("./db");
+    }
+    if( !existsSync("./db/blocks") )
+    {
+        mkdirSync("./db/blocks");
+    }
+    if( !existsSync("./db/headers") )
+    {
+        mkdirSync("./db/headers");
+    }
 }

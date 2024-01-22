@@ -1,9 +1,9 @@
 import { Cbor, CborArray, CborBytes, CborUInt, LazyCborArray } from "@harmoniclabs/cbor";
-import { ChainPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
+import { RealPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { blake2b_256 } from "../../crypto";
 import { logger } from "../../../src/logger";
 
-export function tryGetEBBPoint( headerBytes: Uint8Array ): ChainPoint | undefined
+export function tryGetEBBPoint( headerBytes: Uint8Array ): RealPoint | undefined
 {
     const lazyHead = Cbor.parseLazy( headerBytes );
 
@@ -39,7 +39,7 @@ export function tryGetEBBPoint( headerBytes: Uint8Array ): ChainPoint | undefine
 
     const epochId = epochIdCbor.num; 
 
-    return new ChainPoint({
+    return new RealPoint({
         blockHeader: {
             // byron is a pain
             // the hash is calculated wrapping the header in the second slot of an array
