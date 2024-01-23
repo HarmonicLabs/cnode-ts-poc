@@ -3,28 +3,16 @@ import { IHeader } from "../IHeader";
 import { U8Arr, U8Arr32 } from "../types";
 import { blake2b_256 } from "../../crypto";
 import { IOperationalCert, opCertToCborObjElems } from "../common/operationalCert";
-import { VrfCert, vrfCertToCborObj, vrfCertFromCborObj } from "../common/vrfCert";
-import { roDescr } from "../../utils/roDescr";
+import { IShelleyHeader } from "../shelley";
+import { VrfCert, vrfCertFromCborObj, vrfCertToCborObj } from "../common/vrfCert";
 import { getCborBytesDescriptor } from "../../utils/getCborBytesDescriptor";
+import { roDescr } from "../../utils/roDescr";
 import { IProtocolVersion } from "../common/protocolVersion";
 
-export interface IShelleyHeader extends IHeader {
-    readonly blockNo: bigint,
-    // readonly slotNo: bigint // part of IHeader
-    // readonly prevHash: U8Arr32 // part of IHeader,
-    readonly issuerVkey: U8Arr32,
-    readonly vrfVkey: U8Arr32,
-    readonly blockBodySize: bigint,
-    readonly blockBodyHash: U8Arr32,
-    readonly operationalCert: IOperationalCert,
-    readonly protocolVersion: IProtocolVersion,
-    readonly bodySignature: Uint8Array;
-    readonly nonceVrf: VrfCert,
-    readonly leaderVrf: VrfCert,
-}
+export interface IAlonzoHeader extends IShelleyHeader {}
 
-export class ShelleyHeader
-    implements IShelleyHeader
+export class AlonzoHeader
+    implements IAlonzoHeader
 {
     readonly hash: Uint8Array & { readonly length: 32; };
     readonly prevHash: Uint8Array & { readonly length: 32; };
@@ -104,17 +92,17 @@ export class ShelleyHeader
         return Uint8Array.prototype.slice.call( this.cborBytes );
     }
 
-    static fromCbor( cbor: CanBeCborString ): ShelleyHeader
+    static fromCbor( cbor: CanBeCborString ): AlonzoHeader
     {
         const bytes = cbor instanceof Uint8Array ? cbor : forceCborString( cbor ).toBuffer();
-        return ShelleyHeader.fromCborObj( Cbor.parse( bytes ), bytes );
+        return AlonzoHeader.fromCborObj( Cbor.parse( bytes ), bytes );
     }
-    static fromCborObj( cbor: CborObj, _originalBytes?: Uint8Array ): ShelleyHeader
+    static fromCborObj( cbor: CborObj, _originalBytes?: Uint8Array ): AlonzoHeader
     {
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot ShelleyHeader");
+        )) throw new Error("invalid cbor fot AlonzoHeader");
 
         const [
             cHdrBody,
@@ -125,7 +113,7 @@ export class ShelleyHeader
             cHdrBody instanceof CborArray &&
             cHdrBody.array.length >= 15 &&
             cBodySignature instanceof CborBytes
-        )) throw new Error("invalid cbor for ShelleyHeader");
+        )) throw new Error("invalid cbor for AlonzoHeader");
 
         const [
             cBlockNo,
@@ -159,7 +147,7 @@ export class ShelleyHeader
             cSignature instanceof CborBytes     &&
             cProtVerMajor instanceof CborUInt   &&
             cProtVerMinor instanceof CborUInt
-        )) throw new Error("invalid cbor for ShelleyHeader");
+        )) throw new Error("invalid cbor for AlonzoHeader");
 
         const nonceVrf = vrfCertFromCborObj( cNonceVrf );
         const leaderVrf = vrfCertFromCborObj( cLeaderVrf );
@@ -167,7 +155,7 @@ export class ShelleyHeader
         const originalWerePresent = _originalBytes instanceof Uint8Array;
         _originalBytes = _originalBytes instanceof Uint8Array ? _originalBytes : Cbor.encode( cbor ).toBuffer();
         
-        const hdr = new ShelleyHeader({
+        const hdr = new AlonzoHeader({
             hash: blake2b_256( _originalBytes ) as U8Arr32,
             prevHash: cPrevHash.buffer as U8Arr32,
             slotNo: cSlotNo.num,
