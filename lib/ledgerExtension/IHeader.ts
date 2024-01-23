@@ -14,7 +14,7 @@ export interface IHeader {
     // ledger has no concept of "point"
     // it is just a consensus / network thing
     // readonly point: RealPoint
-    point?: () => IRealPoint
+    // point?: () => IRealPoint
 
 }
 

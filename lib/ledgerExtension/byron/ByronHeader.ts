@@ -525,7 +525,7 @@ export class ByronHeader
                 extra: { value: header.extra, ...roDescr },
                 cborBytes: getCborBytesDescriptor(),
             }
-        )
+        );
     }
 
     toCbor(): CborString
@@ -558,10 +558,8 @@ export class ByronHeader
         const bytes = cbor instanceof Uint8Array ? cbor : forceCborString( cbor ).toBuffer();
         return ByronHeader.fromCborObj( Cbor.parse( bytes ), bytes );
     }
-    static fromCborObj( cbor: CborObj, _originalBytes?: Uint8Array | undefined ): ByronHeader
+    static fromCborObj( cbor: CborObj, _originalBytes?: Uint8Array ): ByronHeader
     {
-        _originalBytes = _originalBytes instanceof Uint8Array ? _originalBytes : Cbor.encode( cbor ).toBuffer();
-
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 5
@@ -584,7 +582,10 @@ export class ByronHeader
         const consensusData = byronConsDataFromCborObj( cborConsData );
         const extra = byronHeaderExtraFromCborObj( cborExtra );
 
-        return new ByronHeader({
+        const originalWerePresent = _originalBytes instanceof Uint8Array;
+        _originalBytes = _originalBytes instanceof Uint8Array ? _originalBytes : Cbor.encode( cbor ).toBuffer();
+        
+        const hdr = new ByronHeader({
             // byron is a pain
             // the hash is calculated wrapping the header in the second slot of an array
             // the first slot is uint(0) for EBB and uint(1) for normal byron blocks
@@ -597,6 +598,14 @@ export class ByronHeader
             consensusData,
             extra
         });
+
+        if( originalWerePresent )
+        {
+            // @ts-ignore Cannot assign to 'cborBytes' because it is a read-only property.
+            hdr.cborBytes = _originalBytes;
+        }
+
+        return hdr;
     }
 
 }
