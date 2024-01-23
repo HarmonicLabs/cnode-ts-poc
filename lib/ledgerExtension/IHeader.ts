@@ -16,6 +16,9 @@ export interface IHeader {
     // readonly point: RealPoint
     // point?: () => IRealPoint
 
+    // not really a consensus nor ledger thing
+    // but turns useful for implementations
+    readonly cborBytes?: Uint8Array
 }
 
 export function isIHeader( stuff: any ): stuff is IHeader
