@@ -8,7 +8,7 @@ export interface IHeader {
     readonly hash: Uint8Array & { readonly length: 32 },
     readonly prevHash: Uint8Array & { readonly length: 32 },
     readonly slotNo: bigint,
-    // block number is only a consensus thing; not ledger concern
+    // block number is not present on babbage headers
     // readonly blockNo: number,
     readonly isEBB: boolean,
     // ledger has no concept of "point"
