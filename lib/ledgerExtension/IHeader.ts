@@ -31,8 +31,6 @@ export function isIHeader( stuff: any ): stuff is IHeader
         stuff.prevHash.length === 32 &&
 
         Number.isSafeInteger( stuff.slotNo ) &&
-        Number.isSafeInteger( stuff.blockNo ) &&
-        typeof stuff.isEBB === "boolean" &&
-        isRealPoint( stuff.point )
+        typeof stuff.isEBB === "boolean"
     );
 }
