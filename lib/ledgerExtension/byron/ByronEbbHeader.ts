@@ -116,7 +116,7 @@ export class ByronEbbHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 5
-        )) throw new Error("invalid cbor fot ByronEbbHeader");
+        )) throw new Error("invalid cbor for ByronEbbHeader");
 
         const [
             cborMagic,
@@ -131,7 +131,7 @@ export class ByronEbbHeader
             cborPrevHash instanceof CborBytes &&
             cborBodyProof instanceof CborBytes &&
             extra instanceof CborArray
-        )) throw new Error("invalid cbor fot ByronEbbHeader");
+        )) throw new Error("invalid cbor for ByronEbbHeader");
 
         const consensusData = byronEbbConsDataFromCborObj( cborConsData );
 

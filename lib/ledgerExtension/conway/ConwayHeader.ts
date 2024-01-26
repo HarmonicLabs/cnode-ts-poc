@@ -99,7 +99,7 @@ export class ConwayHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot ConwayHeader");
+        )) throw new Error("invalid cbor for ConwayHeader");
 
         const [
             cHdrBody,

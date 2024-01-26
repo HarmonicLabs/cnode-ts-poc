@@ -113,7 +113,7 @@ export class BabbageHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot BabbageHeader");
+        )) throw new Error("invalid cbor for BabbageHeader");
 
         const [
             cHdrBody,

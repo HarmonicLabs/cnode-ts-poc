@@ -101,7 +101,7 @@ export class MaryHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot MaryHeader");
+        )) throw new Error("invalid cbor for MaryHeader");
 
         const [
             cHdrBody,

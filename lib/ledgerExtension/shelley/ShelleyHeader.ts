@@ -114,7 +114,7 @@ export class ShelleyHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot ShelleyHeader");
+        )) throw new Error("invalid cbor for ShelleyHeader");
 
         const [
             cHdrBody,

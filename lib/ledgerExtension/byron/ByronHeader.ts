@@ -563,7 +563,7 @@ export class ByronHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 5
-        )) throw new Error("invalid cbor fot ByronHeader");
+        )) throw new Error("invalid cbor for ByronHeader");
 
         const [
             cborMagic,
@@ -576,7 +576,7 @@ export class ByronHeader
         if(!(
             cborMagic instanceof CborUInt &&
             cborPrevHash instanceof CborBytes
-        )) throw new Error("invalid cbor fot ByronHeader");
+        )) throw new Error("invalid cbor for ByronHeader");
 
         const bodyProof = byronBodyProofFromCborObj( cborBodyProof );
         const consensusData = byronConsDataFromCborObj( cborConsData );

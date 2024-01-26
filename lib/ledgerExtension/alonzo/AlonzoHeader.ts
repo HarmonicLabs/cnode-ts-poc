@@ -102,7 +102,7 @@ export class AlonzoHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot AlonzoHeader");
+        )) throw new Error("invalid cbor for AlonzoHeader");
 
         const [
             cHdrBody,

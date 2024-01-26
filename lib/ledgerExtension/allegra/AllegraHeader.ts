@@ -101,7 +101,7 @@ export class AllegraHeader
         if(!(
             cbor instanceof CborArray &&
             cbor.array.length >= 2
-        )) throw new Error("invalid cbor fot AllegraHeader");
+        )) throw new Error("invalid cbor for AllegraHeader");
 
         const [
             cHdrBody,

@@ -50,7 +50,6 @@ export function chainSelectionForFutureBlocks(
 
 export async function chainSelectionForBlock(
     chainDb: ChainDb,
-    blockCache: any,
     header: IHeader,
     onInvalid: () => void
 ): ChainPoint

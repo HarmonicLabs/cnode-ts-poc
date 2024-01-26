@@ -106,7 +106,7 @@ function saveHeaderAndGetPoint( msg: ChainSyncRollForward, basePath: string ): C
     return point;
 }
 
-function getHeaderBytes( rollForwardDataBytes: Uint8Array )
+function getHeaderBytes( rollForwardDataBytes: Uint8Array ): Uint8Array
 {
     let lazy = Cbor.parseLazy( rollForwardDataBytes );
     if(!(
