@@ -6,6 +6,7 @@ import { getCborBytesDescriptor } from "../../utils/getCborBytesDescriptor";
 import { roDescr } from "../../utils/roDescr";
 import { blake2b_256 } from "../../crypto";
 import { type EpochId } from "./ByronHeader";
+import { logger } from "../../../src/logger";
 
 export interface IByronEbbConsData {
     epochId: EpochId,
@@ -16,7 +17,9 @@ export function byronEbbConsDataToCborObj({ epochId, diff }: IByronEbbConsData )
 {
     return new CborArray([
         new CborUInt( epochId ),
-        new CborUInt( diff ),
+        new CborArray([
+            new CborUInt( diff ),
+        ])
     ]);
 }
 
@@ -26,12 +29,21 @@ export function byronEbbConsDataFromCborObj( cbor: CborObj ): IByronEbbConsData
         cbor instanceof CborArray &&
         cbor.array.length >= 2 &&
         cbor.array[0] instanceof CborUInt &&
-        cbor.array[1] instanceof CborUInt
-    )) throw new Error("invalid cbor for IByronEbbConsData");
+        cbor.array[1] instanceof CborArray &&
+        cbor.array[1].array.length >= 1 &&
+        cbor.array[1].array[0] instanceof CborUInt
+    ))
+    {
+        logger.debug(
+            "byron ebb consData form cborObj",
+            Cbor.encode( cbor ).toString()
+        );
+        throw new Error("invalid cbor for IByronEbbConsData");
+    }
 
     return {
         epochId: cbor.array[0].num,
-        diff: cbor.array[1].num,
+        diff: cbor.array[1].array[0].num,
     };
 }
 
@@ -142,7 +154,7 @@ export class ByronEbbHeader
             // byron is a pain
             // the hash is calculated wrapping the header in the second slot of an array
             // the first slot is uint(0) for EBB and uint(1) for normal byron blocks
-            hash: blake2b_256( new Uint8Array([ 0x82, 0x01, ..._originalBytes ]) ) as U8Arr32,
+            hash: blake2b_256( new Uint8Array([ 0x82, 0x00, ..._originalBytes ]) ) as U8Arr32,
             prevHash: cborPrevHash.buffer as U8Arr32,
             slotNo: consensusData.epochId * BigInt( 21600 ),
             isEBB: false,

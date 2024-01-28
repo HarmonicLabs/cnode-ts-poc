@@ -9,11 +9,13 @@ import { appendFile } from "fs/promises";
 import { Cbor, CborBytes, CborUInt, LazyCborArray } from "@harmoniclabs/cbor";
 import { LazyCborTag } from "@harmoniclabs/cbor/dist/LazyCborObj/LazyCborTag";
 import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
+import { MultiEraHeader } from "../lib/ledgerExtension/multi-era/MultiEraHeader";
+import { pointFromHeader } from "../lib/utils/pointFromHeadert";
 
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
     // temporarily just consider 2 connections
-    while( connections.length > 2 ) connections.pop();
+    while( connections.length > 1 ) connections.pop();
 
     createDbDirs()
 
@@ -83,86 +85,33 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
 
 function saveHeaderAndGetPoint( msg: ChainSyncRollForward, basePath: string ): ChainPoint
 {
+    const msgDataBytes = msg.getDataBytes();
+    const multiEraHeader = MultiEraHeader.fromCbor( msgDataBytes );
+    const point = pointFromHeader( multiEraHeader.header );
+
+    /*
     const headerBytes = getHeaderBytes( msg.getDataBytes() );
     const point =
         tryGetEBBPoint( headerBytes ) ??
         tryGetByronPoint( headerBytes ) ??
         tryGetAlonzoPoint( headerBytes ) ??
         tryGetBabbagePoint( headerBytes );
+    */
 
     if(!(point instanceof RealPoint))
     {
-        logger.error("unrecognized block header; " + toHex( headerBytes ) );
+        logger.error("unrecognized block header; msgDataBytes: " + toHex( msgDataBytes ) );
         throw new Error("unrecognized block header");
     }
 
-    const hashStr = toHex( point.blockHeader?.hash ?? new Uint8Array() );
+    const hashStr = toHex( point.blockHeader.hash );
     const path = `${basePath}/${hashStr}-${point.blockHeader?.slotNumber}`;
 
-    const bytes = msg.toCborBytes();
+    const bytes = multiEraHeader.header.toCborBytes();
     writeFile( path, bytes, () => {});
-    // logger.info(`wrote ${bytes.length} bytes long header in file "${path}"`);
+    logger.info(multiEraHeader.eraIndex,`wrote ${bytes.length} bytes long header in file "${path}"`);
 
     return point;
-}
-
-function getHeaderBytes( rollForwardDataBytes: Uint8Array ): Uint8Array
-{
-    let lazy = Cbor.parseLazy( rollForwardDataBytes );
-    if(!(
-        lazy instanceof LazyCborArray &&
-        lazy.array.length === 2
-    )) {
-        logger.debug("not first array");
-        logger.error( "unexpected roll forward data", lazy, toHex( rollForwardDataBytes ) );
-        throw new Error("unexpected roll forward data");
-    }
-    const eraIndexCbor = Cbor.parse( lazy.array[0] );
-    if(!(eraIndexCbor instanceof CborUInt))
-    {
-        logger.debug("era index", eraIndexCbor);
-        logger.error("invalid era index");
-        throw new Error("invalid era index");
-    }
-    const eraIndex = eraIndexCbor.num;
-
-    if( eraIndex === BigInt(0) ) return getOuroborsClassicHeader( lazy.array[1] );
-
-    lazy = Cbor.parseLazy( lazy.array[1] );
-    if(!(
-        lazy instanceof LazyCborTag &&
-        lazy.data instanceof CborBytes
-    ))
-    {
-        logger.debug("not cbor tag");
-        logger.error( "unexpected roll forward data", lazy, toHex( rollForwardDataBytes ) );
-        throw new Error("unexpected roll forward data");
-    }
-    return lazy.data.buffer;
-}
-
-function getOuroborsClassicHeader( wrappingBytes: Uint8Array )
-{
-    let lazy = Cbor.parseLazy( wrappingBytes );
-    if(!(
-        lazy instanceof LazyCborArray &&
-        lazy.array.length === 2
-    )) {
-        logger.debug("not second array");
-        logger.error( "unexpected roll forward data", lazy, toHex( wrappingBytes ) );
-        throw new Error("unexpected roll forward data");
-    }
-    lazy = Cbor.parseLazy( lazy.array[1] );
-    if(!(
-        lazy instanceof LazyCborTag &&
-        lazy.data instanceof CborBytes
-    ))
-    {
-        logger.debug("not cbor tag");
-        logger.error( "unexpected roll forward data", lazy, toHex( wrappingBytes ) );
-        throw new Error("unexpected roll forward data");
-    }
-    return lazy.data.buffer;
 }
 
 async function fetchAndSaveBlocks(
@@ -172,7 +121,7 @@ async function fetchAndSaveBlocks(
     basePath: string
 ): Promise<void>
 {
-    logger.info("requestRange: " + startPoint.toString() + " - " + endPoint.toString());
+    // logger.info("requestRange: " + startPoint.toString() + " - " + endPoint.toString());
     const blocksMsgs = await client.requestRange( startPoint, endPoint );
     
     if( blocksMsgs instanceof BlockFetchNoBlocks || !Array.isArray( blocksMsgs ) )
@@ -197,11 +146,11 @@ async function fetchAndSaveBlocks(
         await appendFile( path, block );
         totBytes += block.length;
     };
-    logger.info(
-        "saving " + blocks.length +
-        " blocks in file \"" + path + 
-        "\" for a total of " + totBytes + " bytes"
-    );
+    // logger.info(
+    //     "saving " + blocks.length +
+    //     " blocks in file \"" + path + 
+    //     "\" for a total of " + totBytes + " bytes"
+    // );
 }
 
 function createDbDirs(): void

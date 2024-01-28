@@ -39,6 +39,7 @@ export function isOlderThanK(
  * 
  * @returns {ChainPoint} the new tip
  */
+/*
 export function chainSelectionForFutureBlocks(
     chainDb: any,
     blockCache: any
@@ -108,3 +109,4 @@ async function addToCurrentChain(
 {
     
 }
+//*/
