@@ -1,170 +1,187 @@
-import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
+import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint, isRealPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
 import { Socket } from "net";
 import { existsSync, mkdir, mkdirSync, writeFile, writeFileSync } from "fs";
-import { tryGetByronPoint, tryGetEBBPoint } from "../lib/ledgerExtension/byron";
-import { tryGetAlonzoPoint } from "../lib/ledgerExtension/alonzo";
-import { tryGetBabbagePoint } from "../lib/ledgerExtension/babbage/tryGetBabbagePoint";
 import { appendFile } from "fs/promises";
-import { Cbor, CborBytes, CborUInt, LazyCborArray } from "@harmoniclabs/cbor";
-import { LazyCborTag } from "@harmoniclabs/cbor/dist/LazyCborObj/LazyCborTag";
-import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
+import { fromHex, toHex, uint8ArrayEq } from "@harmoniclabs/uint8array-utils";
 import { MultiEraHeader } from "../lib/ledgerExtension/multi-era/MultiEraHeader";
 import { pointFromHeader } from "../lib/utils/pointFromHeadert";
+import { ClientNext, getUniqueExtensions } from "../lib/consensus/ChainDb/VolatileDb/getUniqueExtensions";
+import { downloadExtensions, downloadForks } from "../lib/consensus/ChainDb/VolatileDb/downloadBlocks";
+import { ChainDb } from "../lib/consensus/ChainDb/ChainDb";
+import { ChainFork, ChainForkHeaders, VolatileDb, forkHeadersToPoints } from "../lib/consensus/ChainDb/VolatileDb";
 
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
     // temporarily just consider 2 connections
     while( connections.length > 1 ) connections.pop();
 
-    createDbDirs()
+    const chainDB = new ChainDb("./db");
 
-    const chainSyncClients = connections.map( mplexer => new ChainSyncClient( mplexer ) );
-    const blockFetchClients = connections.map( mplexer => new BlockFetchClient( mplexer ) );
+    const peers = connections.map( mplexer => 
+        ({ 
+            chainSync: new ChainSyncClient( mplexer ),
+            blockFetch: new BlockFetchClient( mplexer )
+        })
+    );
 
-    chainSyncClients.forEach( client => {
+    peers.forEach( ({ chainSync: client }) => {
         client.once("awaitReply", () =>
             logger.info(
                 "reached tip on peer",
                 (client.mplexer.socket.unwrap() as Socket).remoteAddress
             )
         );
+        client.on("error", err => {
+            logger.error( err );
+            throw err;
+        });
     });
-    blockFetchClients.forEach( client => {
-        client.on("error", logger.error );
+    peers.forEach( ({ blockFetch: client }) => {
+        client.on("error", err => {
+            logger.error( err );
+            throw err;
+        });
     });
 
-    let start: ChainPoint | undefined = undefined;
-    let curr_batch_size = 0;
-    let prev: ChainPoint | undefined =  undefined;
+    const startPoint = new RealPoint({ 
+        blockHeader: {
+            hash: fromHex("76ae58684c96c281e61fef8def4fce4c400f59bf3d2f41b20aa97d0965b4aea2"),
+            slotNumber: 50705698 
+        }
+    });
+
+    await Promise.all(
+        peers.map(
+            async ({ chainSync: client }) => {
+                await client.findIntersect([ startPoint ]);
+                // rollback
+                await client.requestNext();
+            }
+        )
+    );
+
+    const volaitileDb = chainDB.volatileDb;
+
+    console.log( chainDB );
+    volaitileDb.main.push( startPoint );
 
     while( true )
     {
-        const nextHeaders = await Promise.all( chainSyncClients.map( client => client.requestNext() ));
-    
-        for( const next of nextHeaders )
+        const nextHeaders = await Promise.all(
+            peers.map( async peer => {
+                return {
+                    next: await peer.chainSync.requestNext(),
+                    peer
+                } as ClientNext;
+            })
+        );
+
+        const { extensions, forks } = await getUniqueExtensions( nextHeaders );
+
+        // only adds to volatileDb
+        // does not do chain selection (aka. no extensions nor switch to fork)
+        void await Promise.all([
+            downloadExtensions( volaitileDb, extensions ),
+            downloadForks( volaitileDb, forks )
+        ]);
+
+        chainSelectionForExtensions( volaitileDb, extensions.map(({ header }) => header ) );
+        chainSelectionForForks( volaitileDb, forks );
+    }
+}
+
+
+function chainSelectionForExtensions(
+    volaitileDb: VolatileDb,
+    extensions: MultiEraHeader[]
+): void
+{
+    // assumption 4.1 ouroboros-consensus report
+    // always prefer extension
+    //
+    // aka. if we have two chains of the same legth we stay on our own
+
+    let currTip = volaitileDb.tip;
+    let currTipHash = currTip.blockHeader.hash;
+
+    // we get extensions via roll forwards by peers we are synced with
+    // so either extends main or extends forks
+    // we can omit checks for rollbacks
+
+    // we process the main extension first (if present)
+    // so that we can check fork extensions later using strict >
+    const mainExtension = extensions.find( hdr => uint8ArrayEq( hdr.prevHash, currTipHash ) );
+    if( mainExtension )
+    {
+        volaitileDb.main.push( pointFromHeader( mainExtension ) );
+        void extensions.splice( extensions.indexOf( mainExtension ), 1 );
+    }
+
+    if( extensions.length === 0 ) return;
+
+    const forks = volaitileDb.forks;
+
+    for( const fork of forks )
+    {
+        const { fragment, intersection } = fork;
+        currTip = fragment.length === 0 ? intersection : fragment[ fragment.length - 1 ];
+        currTipHash = currTip.blockHeader.hash;
+
+        for( const extension of extensions )
         {
-            if( next instanceof ChainSyncRollForward )
+            if( uint8ArrayEq( extension.prevHash, currTipHash ) )
             {
-                // save header to the disk and get header point
-                const point = saveHeaderAndGetPoint( next, "./db/headers" );
-    
-                // if no start present, set start to header point
-                if(!(start instanceof ChainPoint) ) start = point;
+                logger.info("fork extended");
+                fragment.push( pointFromHeader( extension ) );
 
-                // increment current batch size
-                curr_batch_size++;
+                // so we don't check it later
+                extensions.splice( extensions.indexOf( extension ), 1 );
 
-                // if current batch size >= expected batch size
-                // fetch the blocks and save them to disk
-                if( curr_batch_size >= batch_size )
+                const mainDistance = volaitileDb.getDistanceFromTipSync( intersection );
+                if( !mainDistance )
                 {
-                    await fetchAndSaveBlocks( blockFetchClients[0], new ChainPoint( start ), new ChainPoint( point ), "./db/blocks");
-                    start = undefined;
-                    curr_batch_size = 0;
-                };
-    
-                // save header point as last one got in case of next msg is rollback
-                prev = point;
-            }
-            else if( next instanceof ChainSyncRollBackwards )
-            {
-                // if we have a batch start point AND a last fetched point
-                // fetch the blocks and save them to disk
-                if(
-                    start instanceof ChainPoint &&
-                    prev instanceof ChainPoint
-                ) {
-                    await fetchAndSaveBlocks( blockFetchClients[0], start, prev, "./db/blocks" );
+                    logger.error("fork intersection missing");
+                    forks.splice( forks.indexOf( fork ), 1 );
+                    volaitileDb.orphans.push( ...fragment );
+                    break;
                 }
-                start = undefined;
+                else if( mainDistance < fragment.length )
+                {
+                    volaitileDb.trySwitchToForkSync( forks.indexOf( fork ) );
+                }
+
+                break;
             }
         }
+
+        // no need to check other forks
+        if( extensions.length === 0 ) break;
     }
 }
 
-function saveHeaderAndGetPoint( msg: ChainSyncRollForward, basePath: string ): ChainPoint
+function chainSelectionForForks(
+    volaitileDb: VolatileDb,
+    forks: ChainForkHeaders[]
+)
 {
-    const msgDataBytes = msg.getDataBytes();
-    const multiEraHeader = MultiEraHeader.fromCbor( msgDataBytes );
-    const point = pointFromHeader( multiEraHeader.header );
+    const forksPoint = forks.map( forkHeadersToPoints );
+    volaitileDb.forks.push( ...forksPoint );
 
-    /*
-    const headerBytes = getHeaderBytes( msg.getDataBytes() );
-    const point =
-        tryGetEBBPoint( headerBytes ) ??
-        tryGetByronPoint( headerBytes ) ??
-        tryGetAlonzoPoint( headerBytes ) ??
-        tryGetBabbagePoint( headerBytes );
-    */
-
-    if(!(point instanceof RealPoint))
+    for( const fork of forksPoint )
     {
-        logger.error("unrecognized block header; msgDataBytes: " + toHex( msgDataBytes ) );
-        throw new Error("unrecognized block header");
-    }
-
-    const hashStr = toHex( point.blockHeader.hash );
-    const path = `${basePath}/${hashStr}-${point.blockHeader?.slotNumber}`;
-
-    const bytes = multiEraHeader.header.toCborBytes();
-    writeFile( path, bytes, () => {});
-    logger.info(multiEraHeader.eraIndex,`wrote ${bytes.length} bytes long header in file "${path}"`);
-
-    return point;
-}
-
-async function fetchAndSaveBlocks(
-    client: BlockFetchClient,
-    startPoint: ChainPoint,
-    endPoint: ChainPoint,
-    basePath: string
-): Promise<void>
-{
-    // logger.info("requestRange: " + startPoint.toString() + " - " + endPoint.toString());
-    const blocksMsgs = await client.requestRange( startPoint, endPoint );
-    
-    if( blocksMsgs instanceof BlockFetchNoBlocks || !Array.isArray( blocksMsgs ) )
-    {
-        logger.error(
-            "unable to fetch blocks;",
-            "startPoint: " + JSON.stringify( startPoint.toJson() ),
-            "endPoint: " + JSON.stringify( endPoint.toJson() ),
-            blocksMsgs
-        );
-        client.done();
-        throw new Error("unable to fetch blocks");
-        return;
-    };
-    const blocks = blocksMsgs.map( msg => msg.getBlockBytes() );
-    const hashStr = toHex( startPoint.blockHeader?.hash ?? new Uint8Array() );
-    const path = `${basePath}/${hashStr}-${startPoint.blockHeader?.slotNumber}`;
-    let totBytes = 0;
-
-    for( const block of blocks )
-    {
-        await appendFile( path, block );
-        totBytes += block.length;
-    };
-    // logger.info(
-    //     "saving " + blocks.length +
-    //     " blocks in file \"" + path + 
-    //     "\" for a total of " + totBytes + " bytes"
-    // );
-}
-
-function createDbDirs(): void
-{
-    if( !existsSync("./db") )
-    {
-        mkdirSync("./db");
-    }
-    if( !existsSync("./db/blocks") )
-    {
-        mkdirSync("./db/blocks");
-    }
-    if( !existsSync("./db/headers") )
-    {
-        mkdirSync("./db/headers");
+        const { fragment, intersection } = fork;
+        const mainDistance = volaitileDb.getDistanceFromTipSync( intersection );
+        if( !mainDistance )
+        {
+            logger.error("fork intersection missing");
+            volaitileDb.forks.splice( volaitileDb.forks.indexOf( fork ), 1 );
+            volaitileDb.orphans.push( ...fragment );
+            break;
+        }
+        else if( mainDistance < fragment.length )
+        {
+            volaitileDb.trySwitchToForkSync( volaitileDb.forks.indexOf( fork ) );
+        }
     }
 }

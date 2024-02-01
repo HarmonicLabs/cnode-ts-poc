@@ -1,7 +1,8 @@
+import { ChainDb } from "./ChainDb";
 
 export class LedgerDb
 {
-    constructor()
+    constructor( fullPath: string, chainDb: ChainDb )
     {
         
     }

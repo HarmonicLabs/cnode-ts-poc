@@ -10,6 +10,8 @@ import { getEraIdxAndHeaderBytes } from "./getEraIdxAndHeaderBytes";
 import { ByronEbbHeader } from "../byron/ByronEbbHeader";
 import { logger } from "../../../src/logger";
 import { toHex } from "@harmoniclabs/uint8array-utils";
+import { IHeader } from "../IHeader";
+import { U8Arr, U8Arr32 } from "../types";
 
 export enum EraIndex {
     Byron = 0,
@@ -46,10 +48,23 @@ export interface IMultiEraHeader<EraIdx extends EraIndex = EraIndex> {
 }
 
 export class MultiEraHeader<EraIdx extends EraIndex = EraIndex>
-    implements IMultiEraHeader<EraIdx>
+    implements IMultiEraHeader<EraIdx>, IHeader
 {
     readonly eraIndex: EraIdx;
     readonly header: RealHeader<EraIdx>;
+
+    get hash(): U8Arr32 { return this.header.hash }
+    get prevHash(): U8Arr32 { return this.header.prevHash }
+    get slotNo(): bigint { return this.header.slotNo }
+    get isEBB(): boolean { return this.header.isEBB }
+    get blockNo(): bigint | undefined
+    {
+        if(
+            this.header instanceof ByronEbbHeader ||
+            this.header instanceof ByronHeader
+        ) return undefined;
+        return  this.header.blockNo;
+    }
 
     constructor({ eraIndex, header }: IMultiEraHeader<EraIdx>)
     {
@@ -59,6 +74,11 @@ export class MultiEraHeader<EraIdx extends EraIndex = EraIndex>
                 header: { value: header, ...roDescr },
             }
         );
+    }
+
+    toCborBytes()
+    {
+        return this.header.toCborBytes();
     }
 
     static fromCbor( cbor: CanBeCborString ): MultiEraHeader
