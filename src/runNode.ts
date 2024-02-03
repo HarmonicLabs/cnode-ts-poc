@@ -1,4 +1,4 @@
-import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint, isRealPoint } from "@harmoniclabs/ouroboros-miniprotocols-ts";
+import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint, isRealPoint, unwrapMultiplexerMessages } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
 import { Socket } from "net";
 import { existsSync, mkdir, mkdirSync, writeFile, writeFileSync } from "fs";
@@ -14,7 +14,7 @@ import { ChainFork, ChainForkHeaders, VolatileDb, forkHeadersToPoints } from "..
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
     // temporarily just consider 2 connections
-    while( connections.length > 1 ) connections.pop();
+    // while( connections.length > 1 ) connections.pop();
 
     const chainDB = new ChainDb("./db");
 
@@ -46,8 +46,8 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
 
     const startPoint = new RealPoint({ 
         blockHeader: {
-            hash: fromHex("76ae58684c96c281e61fef8def4fce4c400f59bf3d2f41b20aa97d0965b4aea2"),
-            slotNumber: 50705698 
+            hash: fromHex("c7ed531026b61bd02446cf94ad52552e79591970befc3bcd2689e6af40cfc1b0"),
+            slotNumber: 50705963 
         }
     });
 
@@ -63,7 +63,6 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
 
     const volaitileDb = chainDB.volatileDb;
 
-    console.log( chainDB );
     volaitileDb.main.push( startPoint );
 
     while( true )
@@ -114,7 +113,7 @@ function chainSelectionForExtensions(
     const mainExtension = extensions.find( hdr => uint8ArrayEq( hdr.prevHash, currTipHash ) );
     if( mainExtension )
     {
-        volaitileDb.main.push( pointFromHeader( mainExtension ) );
+        volaitileDb.extendMain( mainExtension );
         void extensions.splice( extensions.indexOf( mainExtension ), 1 );
     }
 

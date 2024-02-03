@@ -7,21 +7,19 @@ import { logger } from "../../../../src/logger";
 export async function downloadExtensions( volatileDb: VolatileDb, extensions: HeaderAndPeer[] ): Promise<void>
 {
     if( extensions.length === 0 ) return;
-    logger.info("downloading extensions", extensions.length );
-    await Promise.all(
-        extensions.map( async ({ header, peer }) => {
-            const point = pointFromHeader( header );
-            const blockResponse = await peer.blockFetch.request( point );
-            
-            if( blockResponse instanceof BlockFetchNoBlocks )
-            {
-                logger.warn("couldn't find block of extension");
-                return;
-            }
-
-            return volatileDb.putBlock( header, blockResponse.toCborBytes() );
-        })
-    );
+    for( const { header, peer } of extensions )
+    {
+        const point = pointFromHeader( header );
+        const blockResponse = await peer.blockFetch.request( point );
+        
+        if( blockResponse instanceof BlockFetchNoBlocks )
+        {
+            logger.warn("couldn't find block of extension");
+            return;
+        }
+    
+        await volatileDb.putBlock( header, blockResponse.toCborBytes() );
+    }
 }
 
 export async function downloadForks( volatileDb: VolatileDb, forks: (ChainForkHeaders & Record<"peer", Peer>)[] ): Promise<void>

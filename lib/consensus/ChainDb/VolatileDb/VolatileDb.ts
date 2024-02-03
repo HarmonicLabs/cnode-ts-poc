@@ -3,7 +3,7 @@ import { VolatileChain } from "./VolatileChain";
 import { fromHex, toHex, uint8ArrayEq } from "@harmoniclabs/uint8array-utils";
 import { logger } from "../../../../src/logger";
 import { tryGetByronPoint, tryGetEBBPoint } from "../../../ledgerExtension/byron";
-import { writeFile } from "fs/promises";
+import { unlink, writeFile } from "fs/promises";
 import { tryGetAlonzoPoint } from "../../../ledgerExtension/alonzo";
 import { tryGetBabbagePoint } from "../../../ledgerExtension/babbage/tryGetBabbagePoint";
 import { MultiEraHeader } from "../../../ledgerExtension/multi-era/MultiEraHeader";
@@ -13,7 +13,7 @@ import { IHeader } from "../../../ledgerExtension/IHeader";
 import { pointFromHeader } from "../../../utils/pointFromHeadert";
 import { ChainDb } from "../ChainDb";
 import { roDescr } from "../../../utils/roDescr";
-import { existsSync, mkdirSync } from "fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, ReadStream } from "fs";
 import { readFile } from "fs/promises";
 
 export interface ChainFork {
@@ -174,6 +174,95 @@ export class VolatileDb
         );
     }
 
+    extendMain( extension: MultiEraHeader ): void
+    {
+        const pt = pointFromHeader( extension );
+        if(
+            !uint8ArrayEq(
+                this.tip.blockHeader.hash,
+                extension.prevHash
+            )
+        ) {
+            logger.warn("incorrect extension for main chain");
+            return;
+        }
+        logger.info("chain extended: " + toHex( extension.hash ) );
+        this.main.push( pt );
+
+        // some blocks are now immutable
+        if( this.main.length > this.chainDb.cfg.k )
+        {
+            const immutable = this.main.splice( 0, this.main.length - this.chainDb.cfg.k );
+            this.immutable.push( ...immutable );
+
+            for( let i = 0; i < this.forks.length;)
+            {
+                const { intersection, fragment } = this.forks[i];
+                if( immutable.some( pnt => eqChainPoint( pnt, intersection ) ) )
+                {
+                    // fork intersection older than k
+                    // we will never switch to this fork
+                    // move to orphans for future garbage collection
+                    this.orphans.push( ...fragment );
+                }
+                else i++;
+            }
+        }
+
+        if( this.immutable.length >= 100 ) this.garbageCollection();
+    }
+
+    /**
+     * moves immutable blocks ti immutable db
+     * 
+     * removes orphans older than anchor (by slot)
+     */
+    async garbageCollection(): Promise<void>
+    {
+        logger.info("performing garbage collection");
+
+        // first move to immutable and only after that delete things
+        const blockPaths = this.immutable.map( pnt => `${this.path}/blocks/${toHex( pnt.blockHeader.hash )}-${pnt.blockHeader.slotNumber}` );
+
+        // concat immutable blocks
+        const immutableFile = createWriteStream( `${this.chainDb.immutableDb.path}/${this.chainDb.immutableDb.chunks++}.chunk` );
+        let readStream: ReadStream;
+        for( const path of blockPaths )
+        {
+            await new Promise<void>( resolve => {
+                readStream = createReadStream( path );
+                readStream.on("end", () => resolve() );
+                readStream.pipe( immutableFile, { end: true });
+            });
+        }
+        immutableFile.close();
+
+        const anchor = BigInt( this.anchor.blockHeader.slotNumber );
+        const oldOrphans = this.orphans.filter( pnt => pnt.blockHeader.slotNumber < anchor );
+        oldOrphans.forEach( pnt => {
+            const idx = this.orphans.indexOf( pnt );
+            if( idx < 0 ) return;
+            void this.orphans.splice( idx, 1 );
+        });
+
+        // remove orphans and immmutable from volatile
+        await Promise.all(
+            blockPaths
+            .concat( // headerPaths (immutable)
+                this.immutable.map( pnt => `${this.path}/headers/${toHex( pnt.blockHeader.hash )}-${pnt.blockHeader.slotNumber}` )
+            )
+            .concat(
+                oldOrphans.map( pnt => `${this.path}/blocks/${toHex( pnt.blockHeader.hash )}-${pnt.blockHeader.slotNumber}` )
+            )
+            .concat(
+                oldOrphans.map( pnt => `${this.path}/headers/${toHex( pnt.blockHeader.hash )}-${pnt.blockHeader.slotNumber}` )
+            )
+            .map( removeFileIfPresent )
+        );
+        
+        logger.info("garbage collection done");
+    }
+
     /**
      * @returns {number | undefined} the number of blocks between the point and the tip (tip included; point excluded)
      * or `undefined` if the point is not present in the main chain;
@@ -238,4 +327,10 @@ function createDbDirs( basePath: string ): void
     {
         mkdirSync( basePath + "/headers" );
     }
+}
+
+async function removeFileIfPresent( path: string ): Promise<void>
+{
+    if( !existsSync( path ) ) return;
+    return unlink( path );    
 }

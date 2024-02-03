@@ -4,12 +4,21 @@ import { ImmutableDb } from "./ImmutableDb";
 import { LedgerDb } from "./LedgerDb";
 import { VolatileDb } from "./VolatileDb/VolatileDb";
 
+export interface ChainDbCfg {
+    readonly k: number
+}
+
+export const defaultConfig: ChainDbCfg = Object.freeze({
+    k: 2160
+});
+
 export class ChainDb
 {
     readonly path: string
     readonly volatileDb: VolatileDb;
     readonly immutableDb: ImmutableDb;
     readonly ledgerDb: LedgerDb;
+    readonly cfg: ChainDbCfg
 
     constructor( path: string )
     {
@@ -21,7 +30,8 @@ export class ChainDb
                 path: { value: path, ...roDescr },
                 volatileDb: { value: new VolatileDb(`${path}/volatile`, this ), ...roDescr },
                 immutableDb: { value: new ImmutableDb(`${path}/immutable`, this ), ...roDescr },
-                ledgerDb: { value: new LedgerDb(`${path}/ledger`, this ), ...roDescr }
+                ledgerDb: { value: new LedgerDb(`${path}/ledger`, this ), ...roDescr },
+                cfg: { value: defaultConfig, ...roDescr }
             }
         );
     }
