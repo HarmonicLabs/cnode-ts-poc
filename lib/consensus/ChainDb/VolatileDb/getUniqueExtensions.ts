@@ -5,6 +5,7 @@ import { eqChainPoint } from "../../../utils/eqChainPoint";
 import { pointFromHeader } from "../../../utils/pointFromHeadert";
 import { logger } from "../../../../src/logger";
 import { ChainFork, ChainForkHeaders, eqChainFork, eqChainForkHeaders, forkHeadersToPoints } from "./VolatileDb";
+import { Socket } from "net";
 
 export interface Peer {
     chainSync: ChainSyncClient,
@@ -49,25 +50,52 @@ export async function getUniqueExtensions(
             
             // else if( next instanceof ChainSyncRollBackwards )
 
+            logger.warn( "peer", peer.chainSync.mplexer.socket.unwrap<Socket>().remoteAddress, "rolled back" );
+
             const intersection = next.point;
             const peerTip = next.tip.point;
             if(!(
                 isRealPoint( peerTip ) &&
                 isRealPoint( intersection )
             )) throw new Error("invalid peer tip");
+
+            if( eqChainPoint( intersection, peerTip ) )
+            {
+                const fork = {
+                    intersection,
+                    fragment: [],
+                    peer
+                };
+    
+                if(
+                    !forks.some( 
+                        frk => eqChainForkHeaders( frk, fork )
+                    )
+                )
+                forks.push( fork );
+                return;
+            }
+
+            const fragment: MultiEraHeader[] = [];
             
             // in theory we should stop right before receiving "msgAwaitReply"
             // if we receive it we missed the tip; and the loop would continue forever
             // we add a listener to "awaitReply" to avoid this scenario
             let unnoticedTip: boolean = false;
             const setUnnoticedTip = () => { unnoticedTip = true; };
-            client.once("awaitReply", setUnnoticedTip);
+            client.once("awaitReply", () => {
+                logger.error("unnoticed tip");
+                logger.error(
+                    "intersection:", JSON.stringify( intersection.toJson() ),
+                    "peerTip:", JSON.stringify( peerTip.toJson() ),
+                    "fragment:", JSON.stringify( fragment.map( hdr => pointFromHeader( hdr ).toJson() ) ),
+                );
+                setUnnoticedTip();
+            });
             
             let forward: ChainSyncRollForward;
             let hdr: MultiEraHeader;
 
-            const fragment: MultiEraHeader[] = [];
-            
             do {
                 forward = await client.requestNext() as ChainSyncRollForward;
                 if( unnoticedTip ) throw new Error("unnoticed tip");

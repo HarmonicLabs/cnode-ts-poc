@@ -174,7 +174,7 @@ export class VolatileDb
         );
     }
 
-    extendMain( extension: MultiEraHeader ): void
+    async extendMain( extension: MultiEraHeader ): Promise<void>
     {
         const pt = pointFromHeader( extension );
         if(
@@ -209,7 +209,7 @@ export class VolatileDb
             }
         }
 
-        if( this.immutable.length >= 100 ) this.garbageCollection();
+        if( this.immutable.length >= 100 ) await this.garbageCollection();
     }
 
     /**
@@ -224,15 +224,22 @@ export class VolatileDb
         // first move to immutable and only after that delete things
         const blockPaths = this.immutable.map( pnt => `${this.path}/blocks/${toHex( pnt.blockHeader.hash )}-${pnt.blockHeader.slotNumber}` );
 
+        const immutablePath = `${this.chainDb.immutableDb.path}/${this.chainDb.immutableDb.chunks}.chunk`;
+        logger.info("moving", this.immutable.length, "blocks to file", immutablePath );
+
+        if( existsSync( immutablePath ) ) await unlink( immutablePath );
+        
         // concat immutable blocks
-        const immutableFile = createWriteStream( `${this.chainDb.immutableDb.path}/${this.chainDb.immutableDb.chunks++}.chunk` );
-        let readStream: ReadStream;
+        const immutableFile = createWriteStream( immutablePath );
+        this.chainDb.immutableDb.chunks++;
         for( const path of blockPaths )
         {
-            await new Promise<void>( resolve => {
-                readStream = createReadStream( path );
-                readStream.on("end", () => resolve() );
-                readStream.pipe( immutableFile, { end: true });
+            const bytes  = await readFile( path );
+            await new Promise<void>((res, rej) => {
+                immutableFile.write( bytes,( err ) => {
+                    if( err ) rej( err );
+                    res();
+                });
             });
         }
         immutableFile.close();
@@ -259,7 +266,9 @@ export class VolatileDb
             )
             .map( removeFileIfPresent )
         );
-        
+
+        this.immutable.length = 0;
+
         logger.info("garbage collection done");
     }
 

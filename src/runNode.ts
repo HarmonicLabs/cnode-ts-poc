@@ -46,8 +46,8 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
 
     const startPoint = new RealPoint({ 
         blockHeader: {
-            hash: fromHex("c7ed531026b61bd02446cf94ad52552e79591970befc3bcd2689e6af40cfc1b0"),
-            slotNumber: 50705963 
+            hash: fromHex("2261deffac038cae805da9cc892087ea00cc61ed77a63d6605a510eb502128f1"),
+            slotNumber: 51233094 
         }
     });
 
@@ -64,6 +64,18 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
     const volaitileDb = chainDB.volatileDb;
 
     volaitileDb.main.push( startPoint );
+
+    // remove first block since not in file system
+    // only temporary workaround
+    setTimeout(() => { volaitileDb.main.shift() }, 20_000);
+
+    let chainLenInterval = setInterval(() => {
+        logger.info("main chain length: ", volaitileDb.main.length )
+        if( volaitileDb.main.length >= chainDB.cfg.k )
+        {
+            clearInterval( chainLenInterval );
+        }
+    }, 10_000 );
 
     while( true )
     {
@@ -85,16 +97,16 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
             downloadForks( volaitileDb, forks )
         ]);
 
-        chainSelectionForExtensions( volaitileDb, extensions.map(({ header }) => header ) );
+        await chainSelectionForExtensions( volaitileDb, extensions.map(({ header }) => header ) );
         chainSelectionForForks( volaitileDb, forks );
     }
 }
 
 
-function chainSelectionForExtensions(
+async function chainSelectionForExtensions(
     volaitileDb: VolatileDb,
     extensions: MultiEraHeader[]
-): void
+): Promise<void>
 {
     // assumption 4.1 ouroboros-consensus report
     // always prefer extension
@@ -113,7 +125,7 @@ function chainSelectionForExtensions(
     const mainExtension = extensions.find( hdr => uint8ArrayEq( hdr.prevHash, currTipHash ) );
     if( mainExtension )
     {
-        volaitileDb.extendMain( mainExtension );
+        await volaitileDb.extendMain( mainExtension );
         void extensions.splice( extensions.indexOf( mainExtension ), 1 );
     }
 
