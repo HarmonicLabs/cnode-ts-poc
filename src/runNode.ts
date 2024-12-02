@@ -1,6 +1,6 @@
 import { BlockFetchClient, BlockFetchNoBlocks, ChainPoint, ChainSyncClient, ChainSyncIntersectFound, ChainSyncRollBackwards, ChainSyncRollForward, MiniProtocol, Multiplexer, MultiplexerHeader, RealPoint, isRealPoint, unwrapMultiplexerMessages } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
-import { Socket } from "net";
+import { connect, Socket } from "net";
 import { existsSync, mkdir, mkdirSync, writeFile, writeFileSync } from "fs";
 import { appendFile } from "fs/promises";
 import { fromHex, toHex, uint8ArrayEq } from "@harmoniclabs/uint8array-utils";
@@ -10,9 +10,38 @@ import { ClientNext, getUniqueExtensions } from "../lib/consensus/ChainDb/Volati
 import { downloadExtensions, downloadForks } from "../lib/consensus/ChainDb/VolatileDb/downloadBlocks";
 import { ChainDb } from "../lib/consensus/ChainDb/ChainDb";
 import { ChainFork, ChainForkHeaders, VolatileDb, forkHeadersToPoints } from "../lib/consensus/ChainDb/VolatileDb";
+import { Topology } from "../lib/topology";
+import { performHandshake } from "./performHandshake";
 
-export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
+export interface NodeArguments {
+    topology: Topology,
+    networkMagic: number,
+}
+
+export async function runNode({
+    topology,
+    networkMagic
+}: NodeArguments): Promise<void>
 {
+    const connections: Multiplexer[] = 
+    topology.localRoots.concat( topology.publicRoots )
+    .map( root =>
+        root.accessPoints.map( accessPoint => {
+            const mplexer = new Multiplexer({
+                connect: () => 
+                    connect({
+                        host: accessPoint.address,
+                        port: accessPoint.port
+                    }),
+                protocolType: "node-to-node"
+            });
+            return mplexer;
+        })
+    )
+    .flat( 1 );
+
+    void await performHandshake( connections, networkMagic );
+
     // temporarily just consider 2 connections
     // while( connections.length > 1 ) connections.pop();
 
@@ -101,7 +130,6 @@ export async function runNode( connections: Multiplexer[], batch_size: number ):
         chainSelectionForForks( volaitileDb, forks );
     }
 }
-
 
 async function chainSelectionForExtensions(
     volaitileDb: VolatileDb,

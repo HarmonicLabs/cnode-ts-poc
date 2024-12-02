@@ -1,8 +1,16 @@
 {
-  "name": "@harmoniclabs/cnode-ts-poc",
+  "name": "@harmoniclabs/gerolamo",
   "version": "0.0.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "browser": {
+    "node:worker_threads": false,
+    "worker_threads": false,
+    "node:fs": false,
+    "fs": false,
+    "node:os": false,
+    "os": false
+  },
   "files": [
     "dist"
   ],
@@ -16,7 +24,9 @@
     "@harmoniclabs/cbor": "^1.1.5",
     "@harmoniclabs/obj-utils": "^1.0.0",
     "@harmoniclabs/ouroboros-miniprotocols-ts": "^0.0.2-dev7",
-    "@harmoniclabs/uint8array-utils": "^1.0.0",
+    "@harmoniclabs/shared-cardano-mempool-ts": "^0.0.0-dev0",
+    "@harmoniclabs/shared-header-pool-ts": "^0.0.0-dev1",
+    "@harmoniclabs/uint8array-utils": "^1.0.3",
     "@types/blake2": "^4.0.4",
     "@types/node": "^20.1.7",
     "blake2": "^5.0.0",
