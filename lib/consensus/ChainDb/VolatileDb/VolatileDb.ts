@@ -75,7 +75,26 @@ function pointOrd( a: RealPoint, b: RealPoint )
     return Number( BigInt( a.blockHeader.slotNumber ) - BigInt( b.blockHeader.slotNumber ) );
 }
 
-export class VolatileDb
+export interface IVolatileDb {
+    readonly path: string;
+    readonly chainDb: ChainDb;
+    readonly main: RealPoint[];
+    readonly forks: ChainFork[];
+    readonly orphans: RealPoint[];
+    readonly immutable: RealPoint[];
+
+    readonly tip: RealPoint;
+    readonly anchor: RealPoint;
+
+    putBlock(header: MultiEraHeader, blockBytes: Uint8Array): Promise<void>;
+    resolvePoint(point: RealPoint): Promise<MultiEraHeader | undefined>;
+    extendMain(extension: MultiEraHeader): Promise<void>;
+    garbageCollection(): Promise<void>;
+    getDistanceFromTipSync(point: RealPoint): number | undefined;
+    trySwitchToForkSync(forkIndex: number): void;
+}
+
+export class VolatileDb implements IVolatileDb
 {
     readonly path: string;
     readonly chainDb: ChainDb;

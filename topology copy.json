@@ -1,0 +1,48 @@
+{
+  "localRoots": [
+    {
+      "accessPoints": [],
+      "advertise": false,
+      "valency": 1
+    }
+  ],
+  "publicRoots": [
+    {
+      "accessPoints": [
+        {
+          "address": "preprod-node.play.dev.cardano.org",
+          "port": 3001
+        }
+      ],
+      "advertise": false
+    },
+    {
+      "accessPoints": [
+        {
+          "address": "ppe-testnet-relay.cardanistas.io",
+          "port": 3002
+        }
+      ],
+      "advertise": false
+    },
+    {
+      "accessPoints": [
+        {
+          "address": "relay1.preprod.stakepool.quebec",
+          "port": 5000
+        }
+      ],
+      "advertise": false
+    },
+    {
+      "accessPoints": [
+        {
+          "address": "preprod.ada.chicando.net",
+          "port": 3001
+        }
+      ],
+      "advertise": false
+    }
+  ],
+  "useLedgerAfterSlot": 42855241
+}

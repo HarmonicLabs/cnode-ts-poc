@@ -1,9 +1,10 @@
-import { Socket, connect } from "net";
+import { connect } from "net";
 import { parseTopology } from "./parseTopology";
-import { MiniProtocol, Multiplexer, N2NHandshakeVersion, N2NMessageAcceptVersion, N2NMessageProposeVersion, n2nHandshakeMessageFromCbor } from "@harmoniclabs/ouroboros-miniprotocols-ts";
-import { logger } from "./logger";
+import { MiniProtocol, Multiplexer } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { performHandshake } from "./performHandshake";
 import { runNode } from "./runNode";
+import { logger } from "./logger";
+import { toHex } from "@harmoniclabs/uint8array-utils";
 
 void async function main()
 {
@@ -14,12 +15,18 @@ void async function main()
         .map( root =>
             root.accessPoints.map( accessPoint => {
                 const mplexer = new Multiplexer({
-                    connect: () => 
-                        connect({
+                    connect: () => {
+                        logger.info(`Attempt connection to ${accessPoint.address}:${accessPoint.port}`);
+                        return connect({
                             host: accessPoint.address,
                             port: accessPoint.port
-                        }),
-                    protocolType: "node-to-node"
+                        });
+                    },
+                    protocolType: "node-to-node",
+                    initialListeners: {
+                        error: [ logger.error ],
+                        [MiniProtocol.Handshake]: [ payload => logger.debug(`Received handshake: ` + toHex( payload )) ]
+                    }
                 });
                 return mplexer;
             })

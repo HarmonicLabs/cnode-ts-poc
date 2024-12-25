@@ -1,51 +1,28 @@
-import { Multiplexer, MiniProtocol, n2nHandshakeMessageFromCbor, N2NMessageAcceptVersion, N2NMessageProposeVersion, N2NHandshakeVersion } from "@harmoniclabs/ouroboros-miniprotocols-ts";
-import { Socket } from "net";
+import { Multiplexer, MiniProtocol, HandshakeClient, CardanoNetworkMagic, HandshakeAcceptVersion, HandshakeQueryReply, HandshakeRefuse } from "@harmoniclabs/ouroboros-miniprotocols-ts";
 import { logger } from "./logger";
+import { Socket } from "net";
 
-export function performHandshake( mplexers: Multiplexer[], networkMagic: number ): Promise<void[]>
+export function performHandshake(
+    mplexers: Multiplexer[],
+    networkMagic: number = CardanoNetworkMagic.Preprod
+): Promise<(HandshakeAcceptVersion | HandshakeRefuse | HandshakeQueryReply)[]>
 {
     return Promise.all(
-        mplexers.map( mplexer =>
-            // handshake
-            new Promise<void>(( resolve => {
-                mplexer.on( MiniProtocol.Handshake, chunk => {
-    
-                    const msg = n2nHandshakeMessageFromCbor( chunk );
-    
-                    if( msg instanceof N2NMessageAcceptVersion )
-                    {
-                        mplexer.clearListeners( MiniProtocol.Handshake );
-                        logger.info("connected to node", (mplexer.socket.unwrap() as Socket).remoteAddress );
-                        resolve();
-                    }
-                    else {
-                        logger.error("connection refused", msg );
-                        mplexers.splice( mplexers.indexOf( mplexer ), 1 )
-                        throw new Error("TODO: handle rejection");
-                        resolve();
-                    }
-                });
-    
-                mplexer.send(
-                    new N2NMessageProposeVersion({
-                        versionTable: [
-                            {
-                                version: N2NHandshakeVersion.v10,
-                                data: {
-                                    networkMagic,
-                                    initiatorAndResponderDiffusionMode: false,
-                                    peerSharing: 0,
-                                    query: false
-                                }
-                            }
-                        ]
-                    }).toCbor().toBuffer(),
-                    {
-                        hasAgency: true,
-                        protocol: MiniProtocol.Handshake
-                    }
-                );
-            }))
-        )
+        mplexers.map( mplexer => {
+            const client = new HandshakeClient( mplexer );
+
+            logger.info(`Performing handshake`);
+            client.on("accept", logger.debug)
+
+            return client.propose({
+                networkMagic,
+                query: false
+            })
+            .then( result => {
+                logger.debug("Handshake result: ", result);
+                client.terminate();
+                return result;
+            });
+        })
     );
 }

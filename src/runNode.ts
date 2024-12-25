@@ -13,6 +13,7 @@ import { ChainFork, ChainForkHeaders, VolatileDb, forkHeadersToPoints } from "..
 
 export async function runNode( connections: Multiplexer[], batch_size: number ): Promise<void>
 {
+    logger.info("running node");
     // temporarily just consider 2 connections
     // while( connections.length > 1 ) connections.pop();
 

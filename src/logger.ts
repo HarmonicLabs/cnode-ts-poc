@@ -15,7 +15,7 @@ export const logger = {
     {
         if( logger.minPriority <= LoggerPriority.Info )
         console.log(
-            color.cyan(`[Info][${new Date().toUTCString()}]:`),
+            color.gray(`[Info   ][${new Date().toUTCString()}]:`),
             ...args
         );
     },
@@ -23,7 +23,7 @@ export const logger = {
     {
         if( logger.minPriority <= LoggerPriority.Debug )
         console.log(
-            color.blue(`[Debug][${new Date().toUTCString()}]:`),
+            color.cyan(`[Debug  ][${new Date().toUTCString()}]:`),
             ...args
         );
     },
@@ -38,7 +38,7 @@ export const logger = {
     error( ...args: any[] )
     {
         console.error(
-            color.red(`[Error][${new Date().toUTCString()}]:`),
+            color.red(`[Error  ][${new Date().toUTCString()}]:`),
             ...args
         );
     }
